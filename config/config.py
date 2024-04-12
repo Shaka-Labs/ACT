@@ -12,7 +12,7 @@ CHECKPOINT_DIR = 'checkpoints/'
 # device
 device = 'cpu'
 if torch.cuda.is_available(): device = 'cuda'
-if torch.backends.mps.is_available(): device = 'mps'
+#if torch.backends.mps.is_available(): device = 'mps'
 os.environ['DEVICE'] = device
 
 # robot port names
@@ -24,16 +24,15 @@ ROBOT_PORTS = {
 
 # task config (you can add new tasks)
 TASK_CONFIG = {
-    'sort':{
-        'dataset_dir': os.path.join(DATA_DIR, 'sort'),
-        'num_episodes': 20,
-        'episode_len': 300,
-        'state_dim': 5,
-        'action_dim': 5,
-        'cam_width': 640,
-        'cam_height': 480,
-        'camera_names': ['front']
-    }
+    'dataset_dir': DATA_DIR,
+    'num_episodes': 1,
+    'episode_len': 350,
+    'state_dim': 5,
+    'action_dim': 5,
+    'cam_width': 640,
+    'cam_height': 480,
+    'camera_names': ['front'],
+    'camera_port': 0
 }
 
 

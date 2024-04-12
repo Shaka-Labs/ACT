@@ -2,14 +2,20 @@ from config.config import POLICY_CONFIG, TASK_CONFIG, TRAIN_CONFIG # must import
 
 import os
 import pickle
+import argparse
 from copy import deepcopy
 import matplotlib.pyplot as plt
 
 from training.utils import *
 
+# parse the task name via command line
+parser = argparse.ArgumentParser()
+parser.add_argument('--task', type=str, default='task1')
+args = parser.parse_args()
+task = args.task
+
 # configs
-task = 'sort'
-task_cfg = TASK_CONFIG[task]
+task_cfg = TASK_CONFIG
 train_cfg = TRAIN_CONFIG
 policy_config = POLICY_CONFIG
 
@@ -109,11 +115,12 @@ if __name__ == '__main__':
     set_seed(train_cfg['seed'])
     # create ckpt dir if not exists
     os.makedirs(train_cfg['checkpoint_dir'], exist_ok=True)
-    # number of training episodes
-    num_episodes = len(os.listdir(task_cfg['dataset_dir']))
+   # number of training episodes
+    data_dir = os.path.join(task_cfg['dataset_dir'], task)
+    num_episodes = len(os.listdir(data_dir))
 
     # load data
-    train_dataloader, val_dataloader, stats, _ = load_data(task_cfg['dataset_dir'], num_episodes, task_cfg['camera_names'],
+    train_dataloader, val_dataloader, stats, _ = load_data(data_dir, num_episodes, task_cfg['camera_names'],
                                                             train_cfg['batch_size_train'], train_cfg['batch_size_val'])
     # save stats
     stats_path = os.path.join(train_cfg['checkpoint_dir'], f'dataset_stats.pkl')

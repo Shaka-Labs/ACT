@@ -2,14 +2,20 @@ from config.config import TASK_CONFIG, ROBOT_PORTS
 import os
 import cv2
 import h5py
+import argparse
 from tqdm import tqdm
 from time import sleep, time
 from training.utils import pwm2pos, pwm2vel
 
 from robot import Robot
 
-task = "sort"
-cfg = TASK_CONFIG[task]
+# parse the task name via command line
+parser = argparse.ArgumentParser()
+parser.add_argument('--task', type=str, default='task1')
+args = parser.parse_args()
+task = args.task
+
+cfg = TASK_CONFIG
 
 
 def capture_image(cam):
@@ -30,7 +36,7 @@ def capture_image(cam):
 
 if __name__ == "__main__":
     # init camera
-    cam = cv2.VideoCapture(0)
+    cam = cv2.VideoCapture(cfg['camera_port'])
     # Check if the camera opened successfully
     if not cam.isOpened():
         raise IOError("Cannot open camera")
@@ -97,7 +103,7 @@ if __name__ == "__main__":
         t0 = time()
         max_timesteps = len(data_dict['/observations/qpos'])
         # create data dir if it doesn't exist
-        data_dir = cfg['dataset_dir']  
+        data_dir = os.path.join(cfg['dataset_dir'], task)
         if not os.path.exists(data_dir): os.makedirs(data_dir)
         # count number of files in the directory
         idx = len([name for name in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, name))])

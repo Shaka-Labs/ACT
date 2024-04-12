@@ -4,13 +4,21 @@ import os
 import cv2
 import torch
 import pickle
+import argparse
+from time import time
 
+from robot import Robot
 from training.utils import *
-from robot import PhysicalRobot
 
 
-task = 'sort'
-cfg = TASK_CONFIG[task]
+# parse the task name via command line
+parser = argparse.ArgumentParser()
+parser.add_argument('--task', type=str, default='task1')
+args = parser.parse_args()
+task = args.task
+
+# config
+cfg = TASK_CONFIG
 policy_config = POLICY_CONFIG
 train_cfg = TRAIN_CONFIG
 device = os.environ['DEVICE']
@@ -33,12 +41,12 @@ def capture_image(cam):
 
 if __name__ == "__main__":
     # init camera
-    cam = cv2.VideoCapture(0)
+    cam = cv2.VideoCapture(cfg['camera_port'])
     # Check if the camera opened successfully
     if not cam.isOpened():
         raise IOError("Cannot open camera")
     # init follower
-    follower = PhysicalRobot(device_name=ROBOT_PORTS['follower'])
+    follower = Robot(device_name=ROBOT_PORTS['follower'])
 
     # load the policy
     ckpt_path = os.path.join(train_cfg['checkpoint_dir'], train_cfg['eval_ckpt_name'])
@@ -80,6 +88,9 @@ if __name__ == "__main__":
             all_time_actions = torch.zeros([cfg['episode_len'], cfg['episode_len']+num_queries, cfg['state_dim']]).to(device)
         qpos_history = torch.zeros((1, cfg['episode_len'], cfg['state_dim'])).to(device)
         with torch.inference_mode():
+             # init buffers
+            obs_replay = []
+            action_replay = []
             for t in range(cfg['episode_len']):
                 qpos_numpy = np.array(obs['qpos'])
                 qpos = pre_process(qpos_numpy)
@@ -106,7 +117,6 @@ if __name__ == "__main__":
                 raw_action = raw_action.squeeze(0).cpu().numpy()
                 action = post_process(raw_action)
                 action = pos2pwm(action).astype(int)
-                print(action)
                 ### take action
                 follower.set_goal_pos(action)
 
@@ -116,8 +126,54 @@ if __name__ == "__main__":
                     'qvel': vel2pwm(follower.read_velocity()),
                     'images': {cn: capture_image(cam) for cn in cfg['camera_names']}
                 }
+                ### store data
+                obs_replay.append(obs)
+                action_replay.append(action)
 
         os.system('say "stop"')
+
+        # create a dictionary to store the data
+        data_dict = {
+            '/observations/qpos': [],
+            '/observations/qvel': [],
+            '/action': [],
+        }
+        # there may be more than one camera
+        for cam_name in cfg['camera_names']:
+                data_dict[f'/observations/images/{cam_name}'] = []
+
+        # store the observations and actions
+        for o, a in zip(obs_replay, action_replay):
+            data_dict['/observations/qpos'].append(o['qpos'])
+            data_dict['/observations/qvel'].append(o['qvel'])
+            data_dict['/action'].append(a)
+            # store the images
+            for cam_name in cfg['camera_names']:
+                data_dict[f'/observations/images/{cam_name}'].append(o['images'][cam_name])
+
+        t0 = time()
+        max_timesteps = len(data_dict['/observations/qpos'])
+        # create data dir if it doesn't exist
+        data_dir = cfg['dataset_dir']  
+        if not os.path.exists(data_dir): os.makedirs(data_dir)
+        # count number of files in the directory
+        idx = len([name for name in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, name))])
+        dataset_path = os.path.join(data_dir, f'episode_{idx}')
+        # save the data
+        with h5py.File("data/demo/trained.hdf5", 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
+            root.attrs['sim'] = True
+            obs = root.create_group('observations')
+            image = obs.create_group('images')
+            for cam_name in cfg['camera_names']:
+                _ = image.create_dataset(cam_name, (max_timesteps, cfg['cam_height'], cfg['cam_width'], 3), dtype='uint8',
+                                        chunks=(1, cfg['cam_height'], cfg['cam_width'], 3), )
+            qpos = obs.create_dataset('qpos', (max_timesteps, cfg['state_dim']))
+            qvel = obs.create_dataset('qvel', (max_timesteps, cfg['state_dim']))
+            # image = obs.create_dataset("image", (max_timesteps, 240, 320, 3), dtype='uint8', chunks=(1, 240, 320, 3))
+            action = root.create_dataset('action', (max_timesteps, cfg['action_dim']))
+            
+            for name, array in data_dict.items():
+                root[name][...] = array
     
     # disable torque
     follower._disable_torque()
