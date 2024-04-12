@@ -44,7 +44,7 @@ We slightly re-adapt [Action Chunking Tranfosrmer](https://github.com/tonyzhaozh
 ~~~
 python train.py --task sort
 ~~~
-The policy will be saved in `checkpoints/`.
+The policy will be saved in `checkpoints/<task>`.
 
 ### Evaluate policy
 Make sure to keep the same setup while you were collecting the data. To evaluate the policy simply run:
