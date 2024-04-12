@@ -12,8 +12,10 @@ from robot import Robot
 # parse the task name via command line
 parser = argparse.ArgumentParser()
 parser.add_argument('--task', type=str, default='task1')
+parser.add_argument('--num_episodes', type=int, default=1)
 args = parser.parse_args()
 task = args.task
+num_episodes = args.num_episodes
 
 cfg = TASK_CONFIG
 
@@ -47,7 +49,7 @@ if __name__ == "__main__":
     leader.set_trigger_torque()
 
     
-    for i in range(cfg['num_episodes']):
+    for i in range(num_episodes):
         # bring the follower to the leader and start camera
         for i in range(200):
             follower.set_goal_pos(leader.read_position())
