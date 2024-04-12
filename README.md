@@ -21,26 +21,26 @@ You can now install the requirements:
 pip install -r requirements.txt
 ~~~
 
-Go to `config/config.py` and change the paths of the ports that connect leader and follower robots to your computer.
+Go to `TASK_CONFIG` in `config/config.py` and change the paths of the ports that connect leader and follower robots to your computer. 
+
+You will also need to connect a camera to your computer and point it towards the robot while collecting the data via teleoperation. You can change the camera port (set to 0 by default). It's important the camera doesn't move otherwise evaluation of the policy is likely to fail in evaluation mode. 
 
 ### Data collection
 In order to collect data simply run:
 ~~~
-python record_episodes.py
+python record_episodes.py --task sort
 ~~~
-You can select how many episodes you intend collecting in `config/config.py`. Change the value of `'num_episodes'` (set to 1 by default). You should be turning on the volume of your pc-- data for each episode will be recorded after you hear "Go" and it will stop when you hear "Stop".
-
-You will also need to connect a camera to your computer and point it towards the robot while collecting the data via teleoperation. It's important the camera doesn't move otherwise evaluation of the policy is likely to fail.
+You can define the name of the task you are doing and the episodes will be solved at `data/<task>`. You can also select how many episodes to collect when running the script by passing the argument `--num_episodes 1` (set to 1 by default). Turn on the volume of your pc-- data for each episode will be recorded after you hear "Go" and it will stop when you hear "Stop".
 
 ### Train policy
 We slightly re-adapt [Action Chunking Tranfosrmer](https://github.com/tonyzhaozh/act/tree/main) to account for our setup. To start training simply run:
 ~~~
-python train.py
+python train.py --task sort
 ~~~
 The policy will be saved in `checkpoints/`.
 
 ### Evaluate policy
 Make sure to keep the same setup while you were collecting the data. To evaluate the policy simply run:
 ~~~
-python evaluate.py
+python evaluate.py --task sort
 ~~~
