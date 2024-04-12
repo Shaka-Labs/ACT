@@ -3,6 +3,9 @@ This repository contains a re-adapatation of [Action Chunking Transformer](https
 
 We are sharing the repo so anyone (non-experts included) can train a robot policy after a few teleoperated demonstraions.
 
+The sorting task in the video was trained with less than 30 demonstrations on an RTX 3080 and took less than 30min.
+
+
 ## AI training
 ### Setup
 Create conda environment
