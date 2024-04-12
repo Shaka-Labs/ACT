@@ -60,5 +60,5 @@ TRAIN_CONFIG = {
     'batch_size_val': 8,
     'batch_size_train': 8,
     'eval_ckpt_name': 'policy_last.ckpt',
-    'checkpoint_dir': os.path.join(CHECKPOINT_DIR, 'sort')
+    'checkpoint_dir': CHECKPOINT_DIR
 }

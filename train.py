@@ -18,6 +18,7 @@ task = args.task
 task_cfg = TASK_CONFIG
 train_cfg = TRAIN_CONFIG
 policy_config = POLICY_CONFIG
+checkpoint_dir = os.path.join(train_cfg['checkpoint_dir'], task)
 
 # device
 device = os.environ['DEVICE']
@@ -54,7 +55,7 @@ def train_bc(train_dataloader, val_dataloader, policy_config):
     optimizer = make_optimizer(policy_config['policy_class'], policy)
 
     # create checkpoint dir if not exists
-    os.makedirs(train_cfg['checkpoint_dir'], exist_ok=True)
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
     train_history = []
     validation_history = []
@@ -102,11 +103,11 @@ def train_bc(train_dataloader, val_dataloader, policy_config):
         print(summary_string)
 
         if epoch % 200 == 0:
-            ckpt_path = os.path.join(train_cfg['checkpoint_dir'], f"policy_epoch_{epoch}_seed_{train_cfg['seed']}.ckpt")
+            ckpt_path = os.path.join(checkpoint_dir, f"policy_epoch_{epoch}_seed_{train_cfg['seed']}.ckpt")
             torch.save(policy.state_dict(), ckpt_path)
-            plot_history(train_history, validation_history, epoch, train_cfg['checkpoint_dir'], train_cfg['seed'])
+            plot_history(train_history, validation_history, epoch, checkpoint_dir, train_cfg['seed'])
 
-    ckpt_path = os.path.join(train_cfg['checkpoint_dir'], f'policy_last.ckpt')
+    ckpt_path = os.path.join(checkpoint_dir, f'policy_last.ckpt')
     torch.save(policy.state_dict(), ckpt_path)
     
 
@@ -114,7 +115,7 @@ if __name__ == '__main__':
     # set seed
     set_seed(train_cfg['seed'])
     # create ckpt dir if not exists
-    os.makedirs(train_cfg['checkpoint_dir'], exist_ok=True)
+    os.makedirs(checkpoint_dir, exist_ok=True)
    # number of training episodes
     data_dir = os.path.join(task_cfg['dataset_dir'], task)
     num_episodes = len(os.listdir(data_dir))
@@ -123,7 +124,7 @@ if __name__ == '__main__':
     train_dataloader, val_dataloader, stats, _ = load_data(data_dir, num_episodes, task_cfg['camera_names'],
                                                             train_cfg['batch_size_train'], train_cfg['batch_size_val'])
     # save stats
-    stats_path = os.path.join(train_cfg['checkpoint_dir'], f'dataset_stats.pkl')
+    stats_path = os.path.join(checkpoint_dir, f'dataset_stats.pkl')
     with open(stats_path, 'wb') as f:
         pickle.dump(stats, f)
 
