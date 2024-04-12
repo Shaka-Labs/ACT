@@ -1,4 +1,4 @@
-# Imiation Learning for 250$ robot arm
+# Imitation Learning for 250$ robot arm
 This repository contains a re-adapatation of [Action Chunking Transformer](https://github.com/tonyzhaozh/act/tree/main) that works for this [low-cost robot](https://github.com/AlexanderKoch-Koch/low_cost_robot) design (250$). 
 
 We are sharing the repo so anyone (non-experts included) can train a robot policy after a few teleoperated demonstraions.
