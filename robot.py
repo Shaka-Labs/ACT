@@ -161,11 +161,3 @@ class Robot:
             self.dynamixel.set_operating_mode(motor_id, OperatingMode.POSITION)
         self._enable_torque()
         self.motor_control_state = MotorControlType.POSITION_CONTROL
-
-
-if __name__ == '__main__':
-    leader = PhysicalRobot(device_name='/dev/tty.usbmodem57380045221')
-    leader.set_trigger_torque()
-    for _ in range(10000):
-        pwm = leader.read_position()
-        print(f' {leader._pwm2pos(np.array(pwm))}')
