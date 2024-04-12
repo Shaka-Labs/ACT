@@ -5,6 +5,8 @@ We are sharing the repo so anyone (non-experts included) can train a robot polic
 
 The sorting task in the video was trained with less than 30 demonstrations on an RTX 3080 and took less than 30min.
 
+https://github.com/Shaka-Labs/ACT/assets/45405956/83c05915-7442-49a4-905a-273fe35e84ee
+
 
 ## AI training
 ### Setup
