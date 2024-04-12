@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 Go to `TASK_CONFIG` in `config/config.py` and change the paths of the ports that connect leader and follower robots to your computer. 
 
-You will also need to connect a camera to your computer and point it towards the robot while collecting the data via teleoperation. You can change the camera port (set to 0 by default). It's important the camera doesn't move otherwise evaluation of the policy is likely to fail in evaluation mode. 
+You will also need to connect a camera to your computer and point it towards the robot while collecting the data via teleoperation. You can change the camera port in the config (set to 0 by default). It's important the camera doesn't move otherwise evaluation of the policy is likely to fail. 
 
 ### Data collection
 In order to collect data simply run:
