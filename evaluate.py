@@ -39,6 +39,10 @@ def camera_thread_fn(cam_name, cam_idx):
             # print(f"Captured image from {cam_name}")
         else:
             print(f"Failed to capture image from {cam_name}")
+        
+        # Show the image
+        cv2.imshow('image', image)
+        cv2.waitKey(1)
             
     while True:
         capture_image()
@@ -57,6 +61,13 @@ if __name__ == "__main__":
     sleep(1)
     # init follower
     follower = Robot(device_name=ROBOT_PORTS['follower'], servo_ids=[1, 2, 3, 4, 5, 6, 7], disable_torque=False)
+    pos = follower.read_position()
+    
+    # Go to the initial position
+    initial_pos = np.array([2080, 1832, 2029, 2036, 1187, 2045, 2866])
+    for _ in range(100):
+        follower.set_goal_pos(initial_pos)
+        sleep(0.01)
 
     # load the policy
     ckpt_path = os.path.join(train_cfg['checkpoint_dir'], train_cfg['eval_ckpt_name'])
@@ -113,11 +124,12 @@ if __name__ == "__main__":
                 # raw_action = policy(qpos, img)[:, 0]
                 
                 # if t % query_frequency == 0:
-                APPLIED_HORIZON_LENGTH = 20
+                APPLIED_HORIZON_LENGTH = 100
                 if t % APPLIED_HORIZON_LENGTH == 0:
                     all_actions = policy(qpos, img)
                 if policy_config['temporal_agg']:
                     all_time_actions[[t], t:t+num_queries] = all_actions
+                    # all_time_actions[[t], t:t+APPLIED_HORIZON_LENGTH] = all_actions[:, :APPLIED_HORIZON_LENGTH]
                     actions_for_curr_step = all_time_actions[:, t]
                     actions_populated = torch.all(actions_for_curr_step != 0, axis=1)
                     actions_for_curr_step = actions_for_curr_step[actions_populated]
@@ -150,51 +162,3 @@ if __name__ == "__main__":
                 if sleep_t == 0:
                     print('WARNING: frequency is too high')
                 sleep(sleep_t)
-
-        # os.system('say "stop"')
-
-        # # create a dictionary to store the data
-        # data_dict = {
-        #     '/observations/qpos': [],
-        #     '/observations/qvel': [],
-        #     '/action': [],
-        # }
-        # # there may be more than one camera
-        # for cam_name in cfg['camera_names']:
-        #         data_dict[f'/observations/images/{cam_name}'] = []
-
-        # # store the observations and actions
-        # for o, a in zip(obs_replay, action_replay):
-        #     data_dict['/observations/qpos'].append(o['qpos'])
-        #     data_dict['/observations/qvel'].append(o['qvel'])
-        #     data_dict['/action'].append(a)
-        #     # store the images
-        #     for cam_name in cfg['camera_names']:
-        #         data_dict[f'/observations/images/{cam_name}'].append(o['images'][cam_name])
-
-        # t0 = time()
-        # max_timesteps = len(data_dict['/observations/qpos'])
-        # # create data dir if it doesn't exist
-        # data_dir = cfg['dataset_dir']  
-        # if not os.path.exists(data_dir): os.makedirs(data_dir)
-        # # count number of files in the directory
-        # idx = len([name for name in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, name))])
-        # dataset_path = os.path.join(data_dir, f'episode_{idx}')
-        # # save the data
-        # with h5py.File("data/demo/trained.hdf5", 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
-        #     root.attrs['sim'] = True
-        #     obs = root.create_group('observations')
-        #     image = obs.create_group('images')
-        #     for cam_name in cfg['camera_names']:
-        #         _ = image.create_dataset(cam_name, (max_timesteps, cfg['cam_height'], cfg['cam_width'], 3), dtype='uint8',
-        #                                 chunks=(1, cfg['cam_height'], cfg['cam_width'], 3), )
-        #     qpos = obs.create_dataset('qpos', (max_timesteps, cfg['state_dim']))
-        #     qvel = obs.create_dataset('qvel', (max_timesteps, cfg['state_dim']))
-        #     # image = obs.create_dataset("image", (max_timesteps, 240, 320, 3), dtype='uint8', chunks=(1, 240, 320, 3))
-        #     action = root.create_dataset('action', (max_timesteps, cfg['action_dim']))
-            
-        #     for name, array in data_dict.items():
-        #         root[name][...] = array
-    
-    # disable torque
-    follower._disable_torque()
