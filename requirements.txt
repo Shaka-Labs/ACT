@@ -12,4 +12,4 @@ matplotlib
 pyquaternion
 opencv-python
 dynamixel-sdk
-git+https://github.com/Shaka-Labs/detr.git
+git+https://github.com/Shaka-Labs/detr.git@loki
