@@ -1,4 +1,4 @@
-from config.config import POLICY_CONFIG, TASK_CONFIG, TRAIN_CONFIG # must import first
+from loki.config.config import POLICY_CONFIG, TASK_CONFIG, TRAIN_CONFIG # must import first
 
 import os
 import pickle
@@ -10,7 +10,7 @@ from training.utils import *
 
 # parse the task name via command line
 parser = argparse.ArgumentParser()
-parser.add_argument('--task', type=str, default='task1')
+parser.add_argument('--task', type=str, default='pencil')
 args = parser.parse_args()
 task = args.task
 
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     os.makedirs(checkpoint_dir, exist_ok=True)
    # number of training episodes
     data_dir = os.path.join(task_cfg['dataset_dir'], task)
-    num_episodes = len(os.listdir(data_dir))
+    num_episodes = len([f for f in os.listdir(data_dir) if f.endswith('.hdf5')])
 
     # load data
     train_dataloader, val_dataloader, stats, _ = load_data(data_dir, num_episodes, task_cfg['camera_names'],

@@ -1,17 +1,17 @@
-from config.config import TASK_CONFIG, ROBOT_PORTS
 import os
 import cv2
 import h5py
 import argparse
 from tqdm import tqdm
 from time import sleep, time
-from training.utils import pwm2pos, pwm2vel
 
-from robot import Robot
+from loki.config.config import ROBOT_PORTS, TASK_CONFIG
+from loki.robot import Robot
+from training.utils import pwm2pos, pwm2vel
 
 # parse the task name via command line
 parser = argparse.ArgumentParser()
-parser.add_argument('--task', type=str, default='task1')
+parser.add_argument('--task', type=str, default='pencil')
 parser.add_argument('--num_episodes', type=int, default=1)
 args = parser.parse_args()
 task = args.task
@@ -21,18 +21,12 @@ cfg = TASK_CONFIG
 
 
 def capture_image(cam):
-    # Capture a single frame
     _, frame = cam.read()
-    # Generate a unique filename with the current date and time
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    # Define your crop coordinates (top left corner and bottom right corner)
-    x1, y1 = 400, 0  # Example starting coordinates (top left of the crop rectangle)
-    x2, y2 = 1600, 900  # Example ending coordinates (bottom right of the crop rectangle)
-    # Crop the image
-    image = image[y1:y2, x1:x2]
-    # Resize the image
-    image = cv2.resize(image, (cfg['cam_width'], cfg['cam_height']), interpolation=cv2.INTER_AREA)
-
+    # x1, y1 = 400, 0  # Example starting coordinates (top left of the crop rectangle)
+    # x2, y2 = 1600, 900  # Example ending coordinates (bottom right of the crop rectangle)
+    # image = image[y1:y2, x1:x2]
+    # image = cv2.resize(image, (cfg['cam_width'], cfg['cam_height']), interpolation=cv2.INTER_AREA)
     return image
 
 
@@ -43,16 +37,16 @@ if __name__ == "__main__":
     if not cam.isOpened():
         raise IOError("Cannot open camera")
     # init follower
-    follower = Robot(device_name=ROBOT_PORTS['follower'])
+    follower = Robot(device_name=ROBOT_PORTS['follower'], servo_ids=[1, 2, 3, 4, 5, 6, 7])
     # init leader
-    leader = Robot(device_name=ROBOT_PORTS['leader'])
+    leader = Robot(device_name=ROBOT_PORTS['leader'], servo_ids=[1, 2, 3, 4, 5, 6, 7])
     leader.set_trigger_torque()
 
     
     for i in range(num_episodes):
         # bring the follower to the leader and start camera
         for i in range(200):
-            follower.set_goal_pos(leader.read_position())
+            follower.set_goal_pos(leader.read_position(linear=True))
             _ = capture_image(cam)
         os.system('say "go"')
         # init buffers
@@ -69,7 +63,7 @@ if __name__ == "__main__":
                 'images': {cn : image for cn in cfg['camera_names']}
             }
             # action (leader's position)
-            action = leader.read_position()
+            action = leader.read_position(linear=True)
             # apply action
             follower.set_goal_pos(action)
             action = pwm2pos(action)

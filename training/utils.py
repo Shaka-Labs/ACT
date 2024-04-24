@@ -85,6 +85,7 @@ def get_norm_stats(dataset_dir, num_episodes):
     all_action_data = []
     for episode_idx in range(num_episodes):
         dataset_path = os.path.join(dataset_dir, f'episode_{episode_idx}.hdf5')
+        print(f'Loading {dataset_path}')
         with h5py.File(dataset_path, 'r') as root:
             qpos = root['/observations/qpos'][()]
             qvel = root['/observations/qvel'][()]
