@@ -2,6 +2,7 @@ import os
 import cv2
 import h5py
 import argparse
+import threading
 from tqdm import tqdm
 from time import sleep, time
 
@@ -11,56 +12,68 @@ from training.utils import pwm2pos, pwm2vel
 
 # parse the task name via command line
 parser = argparse.ArgumentParser()
-parser.add_argument('--task', type=str, default='pencil')
-parser.add_argument('--num_episodes', type=int, default=1)
+parser.add_argument('--num_episodes', type=int, default=50)
 args = parser.parse_args()
-task = args.task
 num_episodes = args.num_episodes
 
 cfg = TASK_CONFIG
+task = cfg['task_name']
+frequency = cfg['frequency']
+camera_queue = {}
 
+def camera_thread_fn(cam_name, cam_idx):
+    print(f"Starting camera thread for {cam_name} at port {cfg['camera_ports'][cam_idx]}")
+    cam = cv2.VideoCapture(cfg['camera_ports'][cam_idx])
+    if not cam.isOpened():
+            raise IOError(f"Cannot open camera at port {cfg['camera_ports'][cam_idx]}")
+    
+    def capture_image():
+        ret, frame = cam.read()
+        if ret:
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            camera_queue[cam_name] = image
+            print(f"Captured image from {cam_name}")
+        else:
+            print(f"Failed to capture image from {cam_name}")
+            
+    while True:
+        capture_image()
 
-def capture_image(cam):
-    _, frame = cam.read()
-    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    # x1, y1 = 400, 0  # Example starting coordinates (top left of the crop rectangle)
-    # x2, y2 = 1600, 900  # Example ending coordinates (bottom right of the crop rectangle)
-    # image = image[y1:y2, x1:x2]
-    # image = cv2.resize(image, (cfg['cam_width'], cfg['cam_height']), interpolation=cv2.INTER_AREA)
-    return image
-
+def get_images():
+    images = {}
+    for cam_name, image in camera_queue.items():
+        images[cam_name] = image
+    return images
 
 if __name__ == "__main__":
     # init camera
-    cam = cv2.VideoCapture(cfg['camera_port'])
-    # Check if the camera opened successfully
-    if not cam.isOpened():
-        raise IOError("Cannot open camera")
-    # init follower
+    cams = {}
+    for i, cam_name in enumerate(cfg['camera_names']):
+        threading.Thread(target=camera_thread_fn, args=(cam_name, i)).start()
+
     follower = Robot(device_name=ROBOT_PORTS['follower'], servo_ids=[1, 2, 3, 4, 5, 6, 7])
-    # init leader
     leader = Robot(device_name=ROBOT_PORTS['leader'], servo_ids=[1, 2, 3, 4, 5, 6, 7])
     leader.set_trigger_torque()
-
     
     for i in range(num_episodes):
         # bring the follower to the leader and start camera
         for i in range(200):
             follower.set_goal_pos(leader.read_position(linear=True))
-            _ = capture_image(cam)
+            get_images()
         os.system('say "go"')
         # init buffers
         obs_replay = []
         action_replay = []
         for i in tqdm(range(cfg['episode_len'])):
+            st = time()
             # observation
             qpos = follower.read_position()
             qvel = follower.read_velocity()
-            image = capture_image(cam)
+            images = get_images()
             obs = {
                 'qpos': pwm2pos(qpos),
                 'qvel': pwm2vel(qvel),
-                'images': {cn : image for cn in cfg['camera_names']}
+                'images': images,
             }
             # action (leader's position)
             action = leader.read_position(linear=True)
@@ -70,6 +83,10 @@ if __name__ == "__main__":
             # store data
             obs_replay.append(obs)
             action_replay.append(action)
+            sleep_t = max((1 / frequency) - (time() - st), 0)
+            if sleep_t == 0:
+                print('WARNING: frequency is too high')
+            sleep(sleep_t)
 
         os.system('say "stop"')
 
@@ -121,4 +138,4 @@ if __name__ == "__main__":
                 root[name][...] = array
     
     leader._disable_torque()
-    follower._disable_torque()
+    # follower._disable_torque()
