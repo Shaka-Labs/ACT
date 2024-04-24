@@ -1,5 +1,6 @@
 from loki.config.config import POLICY_CONFIG, TASK_CONFIG, TRAIN_CONFIG # must import first
 
+import wandb
 import os
 import pickle
 import argparse
@@ -7,6 +8,10 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 
 from training.utils import *
+
+wandb.init(
+    project="loki",
+)
 
 # parse the task name via command line
 parser = argparse.ArgumentParser()
@@ -70,16 +75,16 @@ def train_bc(train_dataloader, val_dataloader, policy_config):
             for batch_idx, data in enumerate(val_dataloader):
                 forward_dict = forward_pass(data, policy)
                 epoch_dicts.append(forward_dict)
-            epoch_summary = compute_dict_mean(epoch_dicts)
-            validation_history.append(epoch_summary)
+            val_epoch_summary = compute_dict_mean(epoch_dicts)
+            validation_history.append(val_epoch_summary)
 
-            epoch_val_loss = epoch_summary['loss']
+            epoch_val_loss = val_epoch_summary['loss']
             if epoch_val_loss < min_val_loss:
                 min_val_loss = epoch_val_loss
                 best_ckpt_info = (epoch, min_val_loss, deepcopy(policy.state_dict()))
         print(f'Val loss:   {epoch_val_loss:.5f}')
         summary_string = ''
-        for k, v in epoch_summary.items():
+        for k, v in val_epoch_summary.items():
             summary_string += f'{k}: {v.item():.3f} '
         print(summary_string)
 
@@ -94,18 +99,20 @@ def train_bc(train_dataloader, val_dataloader, policy_config):
             optimizer.step()
             optimizer.zero_grad()
             train_history.append(detach_dict(forward_dict))
-        epoch_summary = compute_dict_mean(train_history[(batch_idx+1)*epoch:(batch_idx+1)*(epoch+1)])
-        epoch_train_loss = epoch_summary['loss']
+        train_epoch_summary = compute_dict_mean(train_history[(batch_idx+1)*epoch:(batch_idx+1)*(epoch+1)])
+        epoch_train_loss = train_epoch_summary['loss']
         print(f'Train loss: {epoch_train_loss:.5f}')
         summary_string = ''
-        for k, v in epoch_summary.items():
+        for k, v in train_epoch_summary.items():
             summary_string += f'{k}: {v.item():.3f} '
         print(summary_string)
 
-        if epoch % 200 == 0:
+        if epoch % 2 == 0:
             ckpt_path = os.path.join(checkpoint_dir, f"policy_epoch_{epoch}_seed_{train_cfg['seed']}.ckpt")
             torch.save(policy.state_dict(), ckpt_path)
             plot_history(train_history, validation_history, epoch, checkpoint_dir, train_cfg['seed'])
+            wandb.log({f"train/{k}": v for k, v in train_epoch_summary.items()})
+            wandb.log({f"val/{k}": v for k, v in val_epoch_summary.items()})
 
     ckpt_path = os.path.join(checkpoint_dir, f'policy_last.ckpt')
     torch.save(policy.state_dict(), ckpt_path)
