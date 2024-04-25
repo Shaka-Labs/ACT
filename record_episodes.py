@@ -32,7 +32,7 @@ def camera_thread_fn(cam_name, cam_idx):
         if ret:
             image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             camera_queue[cam_name] = image
-            print(f"Captured image from {cam_name}")
+            # print(f"Captured image from {cam_name}")
         else:
             print(f"Failed to capture image from {cam_name}")
             
@@ -43,6 +43,8 @@ def get_images():
     images = {}
     for cam_name, image in camera_queue.items():
         images[cam_name] = image
+    if images == {}:
+        print('WARNING: no images captured')
     return images
 
 if __name__ == "__main__":
@@ -56,10 +58,16 @@ if __name__ == "__main__":
     leader.set_trigger_torque()
     
     for i in range(num_episodes):
-        # bring the follower to the leader and start camera
-        for i in range(200):
+        # reset to initial position (5 seconds)
+        t0 = time()
+        while time() - t0 < 5:
             follower.set_goal_pos(leader.read_position(linear=True))
             get_images()
+        
+        # wait for images
+        while camera_queue == {}:
+            pass
+
         os.system('say "go"')
         # init buffers
         obs_replay = []
@@ -113,7 +121,6 @@ if __name__ == "__main__":
             for cam_name in cfg['camera_names']:
                 data_dict[f'/observations/images/{cam_name}'].append(o['images'][cam_name])
 
-        t0 = time()
         max_timesteps = len(data_dict['/observations/qpos'])
         # create data dir if it doesn't exist
         data_dir = os.path.join(cfg['dataset_dir'], task)
@@ -136,6 +143,6 @@ if __name__ == "__main__":
             
             for name, array in data_dict.items():
                 root[name][...] = array
-    
+        
     leader._disable_torque()
     # follower._disable_torque()

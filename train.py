@@ -6,21 +6,25 @@ import pickle
 import argparse
 from copy import deepcopy
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 from training.utils import *
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--name', type=str, default=f'run')
+args = parser.parse_args()
+
+dt = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+run_name = f"{args.name}-{dt}"
+
 wandb.init(
     project="loki",
+    name=run_name,
 )
-
-# parse the task name via command line
-parser = argparse.ArgumentParser()
-parser.add_argument('--task', type=str, default='pencil')
-args = parser.parse_args()
-task = args.task
 
 # configs
 task_cfg = TASK_CONFIG
+task = task_cfg['task_name']
 train_cfg = TRAIN_CONFIG
 policy_config = POLICY_CONFIG
 checkpoint_dir = os.path.join(train_cfg['checkpoint_dir'], task)

@@ -12,4 +12,5 @@ matplotlib
 pyquaternion
 opencv-python
 dynamixel-sdk
+wandb
 git+https://github.com/Shaka-Labs/detr.git@loki
