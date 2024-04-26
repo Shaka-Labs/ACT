@@ -88,6 +88,7 @@ if __name__ == "__main__":
     post_process = lambda a: a * stats['action_std'] + stats['action_mean']
 
     query_frequency = policy_config['num_queries']
+    # query_frequency = 5
     if policy_config['temporal_agg']:
         query_frequency = 1
         num_queries = policy_config['num_queries']
@@ -127,6 +128,8 @@ if __name__ == "__main__":
                 # raw_action = policy(qpos, img)[:, 0]
                 
                 if t % query_frequency == 0:
+                    qpos = qpos.to(device)
+                    img = img.to(device)
                     all_actions = policy(qpos, img)
                 if policy_config['temporal_agg']:
                     all_time_actions[[t], t:t+num_queries] = all_actions
