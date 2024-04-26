@@ -21,6 +21,7 @@ task = cfg['task_name']
 policy_config = POLICY_CONFIG
 train_cfg = TRAIN_CONFIG
 device = os.environ['DEVICE']
+print(f'Running on device: {device}')
 frequency = cfg['frequency']
 
 camera_queue = {}
@@ -41,8 +42,8 @@ def camera_thread_fn(cam_name, cam_idx):
             print(f"Failed to capture image from {cam_name}")
         
         # Show the image
-        cv2.imshow('image', image)
-        cv2.waitKey(1)
+        # cv2.imshow(f'{cam_name}', image)
+        # cv2.waitKey(1)
             
     while True:
         capture_image()
@@ -125,9 +126,7 @@ if __name__ == "__main__":
 
                 # raw_action = policy(qpos, img)[:, 0]
                 
-                # if t % query_frequency == 0:
-                APPLIED_HORIZON_LENGTH = 3
-                if t % APPLIED_HORIZON_LENGTH == 0:
+                if t % query_frequency == 0:
                     all_actions = policy(qpos, img)
                 if policy_config['temporal_agg']:
                     all_time_actions[[t], t:t+num_queries] = all_actions
@@ -142,9 +141,9 @@ if __name__ == "__main__":
                     raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
                     
                     # Replace gripper action with the last action
-                    raw_action[-1] = all_actions[:, t % APPLIED_HORIZON_LENGTH][-1]
+                    raw_action[-1] = all_actions[:, t % query_frequency][-1]
                 else:
-                    raw_action = all_actions[:, t % APPLIED_HORIZON_LENGTH]
+                    raw_action = all_actions[:, t % query_frequency]
 
                 ### post-process actions
                 raw_action = raw_action.squeeze(0).cpu().numpy()
