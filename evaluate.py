@@ -64,7 +64,8 @@ if __name__ == "__main__":
     pos = follower.read_position()
     
     # Go to the initial position
-    initial_pos = np.array([2080, 1832, 2029, 2036, 1187, 2045, 2866])
+    # initial_pos = np.array([2080, 1832, 2029, 2036, 1187, 2045, 2866])
+    initial_pos = np.array([2020, 1794, 2002, 2140, 1217, 1911, 2774])
     for _ in range(100):
         follower.set_goal_pos(initial_pos)
         sleep(0.01)
@@ -109,7 +110,8 @@ if __name__ == "__main__":
             action_replay = []
             # for t in range(cfg['episode_len']):
             t = -1
-            while True:
+            t0 = time()
+            while time() - t0 < 30:
                 st = time()
                 t += 1
                 qpos_numpy = np.array(obs['qpos'])
@@ -124,7 +126,7 @@ if __name__ == "__main__":
                 # raw_action = policy(qpos, img)[:, 0]
                 
                 # if t % query_frequency == 0:
-                APPLIED_HORIZON_LENGTH = 100
+                APPLIED_HORIZON_LENGTH = 3
                 if t % APPLIED_HORIZON_LENGTH == 0:
                     all_actions = policy(qpos, img)
                 if policy_config['temporal_agg']:
@@ -138,6 +140,9 @@ if __name__ == "__main__":
                     exp_weights = exp_weights / exp_weights.sum()
                     exp_weights = torch.from_numpy(exp_weights.astype(np.float32)).to(device).unsqueeze(dim=1)
                     raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
+                    
+                    # Replace gripper action with the last action
+                    raw_action[-1] = all_actions[:, t % APPLIED_HORIZON_LENGTH][-1]
                 else:
                     raw_action = all_actions[:, t % APPLIED_HORIZON_LENGTH]
 
@@ -162,3 +167,9 @@ if __name__ == "__main__":
                 if sleep_t == 0:
                     print('WARNING: frequency is too high')
                 sleep(sleep_t)
+
+    # back to initial position
+    print('Back to initial position')
+    for _ in range(100):
+        follower.set_goal_pos(initial_pos)
+        sleep(0.01)

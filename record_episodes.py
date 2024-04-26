@@ -12,7 +12,7 @@ from training.utils import pwm2pos, pwm2vel
 
 # parse the task name via command line
 parser = argparse.ArgumentParser()
-parser.add_argument('--num_episodes', type=int, default=50)
+parser.add_argument('--num_episodes', type=int, default=100)
 args = parser.parse_args()
 num_episodes = args.num_episodes
 
@@ -47,6 +47,14 @@ def get_images():
         print('WARNING: no images captured')
     return images
 
+def remove_last_episode():
+    data_dir = os.path.join(cfg['dataset_dir'], task)
+    idx = len([name for name in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, name))])
+    idx -= 1
+    dataset_path = os.path.join(data_dir, f'episode_{idx}')
+    os.remove(dataset_path + '.hdf5')
+    print(f'Removed last episode: {dataset_path}')
+
 if __name__ == "__main__":
     # init camera
     cams = {}
@@ -61,8 +69,14 @@ if __name__ == "__main__":
         # reset to initial position (5 seconds)
         t0 = time()
         while time() - t0 < 5:
-            follower.set_goal_pos(leader.read_position(linear=True))
+            a = leader.read_position(linear=True)
+            follower.set_goal_pos(a)
             get_images()
+        
+        if a[-1] < 1510:
+            # if the episode starts with a closed gripper, remove the last episode
+            remove_last_episode()
+            continue
         
         # wait for images
         while camera_queue == {}:
