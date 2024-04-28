@@ -35,15 +35,16 @@ def camera_thread_fn(cam_name, cam_idx):
     def capture_image():
         ret, frame = cam.read()
         if ret:
-            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            camera_queue[cam_name] = image
+            # image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            camera_queue[cam_name] = frame
             # print(f"Captured image from {cam_name}")
         else:
             print(f"Failed to capture image from {cam_name}")
         
         # Show the image
-        # cv2.imshow(f'{cam_name}', image)
-        # cv2.waitKey(1)
+        if cam_name == 'front':
+            cv2.imshow(f'{cam_name}', frame)
+            cv2.waitKey(1)
             
     while True:
         capture_image()
@@ -72,7 +73,7 @@ if __name__ == "__main__":
         sleep(0.01)
 
     # load the policy
-    ckpt_path = os.path.join(train_cfg['checkpoint_dir'], train_cfg['eval_ckpt_name'])
+    ckpt_path = os.path.join(train_cfg['checkpoint_dir'], cfg['task_name'], train_cfg['eval_ckpt_name'])
     policy = make_policy(policy_config['policy_class'], policy_config)
     loading_status = policy.load_state_dict(torch.load(ckpt_path, map_location=torch.device(device)))
     print(loading_status)
@@ -80,7 +81,7 @@ if __name__ == "__main__":
     policy.eval()
 
     print(f'Loaded: {ckpt_path}')
-    stats_path = os.path.join(train_cfg['checkpoint_dir'], f'dataset_stats.pkl')
+    stats_path = os.path.join(train_cfg['checkpoint_dir'], cfg['task_name'], f'dataset_stats.pkl')
     with open(stats_path, 'rb') as f:
         stats = pickle.load(f)
 
@@ -88,9 +89,9 @@ if __name__ == "__main__":
     post_process = lambda a: a * stats['action_std'] + stats['action_mean']
 
     query_frequency = policy_config['num_queries']
-    # query_frequency = 5
+    # query_frequency = 10
     if policy_config['temporal_agg']:
-        query_frequency = 1
+        query_frequency = 5
         num_queries = policy_config['num_queries']
     
     obs = {
@@ -113,7 +114,7 @@ if __name__ == "__main__":
             # for t in range(cfg['episode_len']):
             t = -1
             t0 = time()
-            while time() - t0 < 30:
+            while time() - t0 < 300:
                 st = time()
                 t += 1
                 qpos_numpy = np.array(obs['qpos'])

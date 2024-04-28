@@ -12,7 +12,7 @@ from training.utils import pwm2pos, pwm2vel
 
 # parse the task name via command line
 parser = argparse.ArgumentParser()
-parser.add_argument('--num_episodes', type=int, default=200)
+parser.add_argument('--num_episodes', type=int, default=100)
 args = parser.parse_args()
 num_episodes = args.num_episodes
 
@@ -30,8 +30,8 @@ def camera_thread_fn(cam_name, cam_idx):
     def capture_image():
         ret, frame = cam.read()
         if ret:
-            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            camera_queue[cam_name] = image
+            # image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            camera_queue[cam_name] = frame
             # print(f"Captured image from {cam_name}")
         else:
             print(f"Failed to capture image from {cam_name}")
@@ -112,19 +112,20 @@ if __name__ == "__main__":
     
     just_started = True
     for i in range(num_episodes):
+
         # reset to initial position (5 seconds)
-        if just_started:
-            just_started = False
-            t0 = time()
-            while time() - t0 < 5:
-                a = leader.read_position(linear=True)
-                follower.set_goal_pos(a)
-                get_images()
+        # if just_started:
+        #     just_started = False
+        t0 = time()
+        while time() - t0 < 4:
+            a = leader.read_position(linear=True)
+            follower.set_goal_pos(a)
+            get_images()
         
-        # if a[-1] < 1510:
-        #     # if the episode starts with a closed gripper, remove the last episode
-        #     remove_last_episode()
-        #     continue
+        if a[-1] < 1510:
+            # if the episode starts with a closed gripper, remove the last episode
+            remove_last_episode()
+            continue
         
         # wait for images
         while len(camera_queue) < len(cfg['camera_names']):
