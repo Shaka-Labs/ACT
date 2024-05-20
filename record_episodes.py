@@ -3,6 +3,7 @@ import os
 import cv2
 import h5py
 import argparse
+import numpy as np
 from tqdm import tqdm
 from time import sleep, time
 from training.utils import pwm2pos, pwm2vel
@@ -25,11 +26,11 @@ def capture_image(cam):
     _, frame = cam.read()
     # Generate a unique filename with the current date and time
     image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    # Define your crop coordinates (top left corner and bottom right corner)
-    x1, y1 = 400, 0  # Example starting coordinates (top left of the crop rectangle)
-    x2, y2 = 1600, 900  # Example ending coordinates (bottom right of the crop rectangle)
-    # Crop the image
-    image = image[y1:y2, x1:x2]
+    # # Define your crop coordinates (top left corner and bottom right corner)
+    # x1, y1 = 400, 0  # Example starting coordinates (top left of the crop rectangle)
+    # x2, y2 = 1600, 900  # Example ending coordinates (bottom right of the crop rectangle)
+    # # Crop the image
+    # image = image[y1:y2, x1:x2]
     # Resize the image
     image = cv2.resize(image, (cfg['cam_width'], cfg['cam_height']), interpolation=cv2.INTER_AREA)
 
@@ -38,9 +39,9 @@ def capture_image(cam):
 
 if __name__ == "__main__":
     # init camera
-    cam = cv2.VideoCapture(cfg['camera_port'])
+    cams = [cv2.VideoCapture(p) for p in cfg['camera_port']]
     # Check if the camera opened successfully
-    if not cam.isOpened():
+    if not all(c.isOpened() for c in cams):
         raise IOError("Cannot open camera")
     # init follower
     follower = Robot(device_name=ROBOT_PORTS['follower'])
@@ -51,10 +52,10 @@ if __name__ == "__main__":
     
     for i in range(num_episodes):
         # bring the follower to the leader and start camera
-        for i in range(200):
+        for _ in range(200):
             follower.set_goal_pos(leader.read_position())
-            _ = capture_image(cam)
-        os.system('say "go"')
+            _ = [capture_image(c) for c in cams]
+        os.system(f'spd-say "go {i}"')
         # init buffers
         obs_replay = []
         action_replay = []
@@ -62,11 +63,14 @@ if __name__ == "__main__":
             # observation
             qpos = follower.read_position()
             qvel = follower.read_velocity()
-            image = capture_image(cam)
+            images = [capture_image(c) for c in cams]
+            images_stacked = np.hstack(images)
+            images_stacked = cv2.cvtColor(images_stacked, cv2.COLOR_RGB2BGR)
+            cv2.imshow('frame', images_stacked) 
             obs = {
                 'qpos': pwm2pos(qpos),
                 'qvel': pwm2vel(qvel),
-                'images': {cn : image for cn in cfg['camera_names']}
+                'images': {cn : im for im, cn in zip(images, cfg['camera_names'])}
             }
             # action (leader's position)
             action = leader.read_position()
@@ -76,8 +80,10 @@ if __name__ == "__main__":
             # store data
             obs_replay.append(obs)
             action_replay.append(action)
+            if cv2.waitKey(1) & 0xFF == ord('q'): 
+                break
 
-        os.system('say "stop"')
+        os.system('spd-say "stop"')
 
         # disable torque
         #leader._disable_torque()

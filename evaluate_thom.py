@@ -6,9 +6,12 @@ import torch
 import pickle
 import argparse
 from time import time
+from tqdm import tqdm
 
 from robot import Robot
 from training.utils import *
+from lerobot.common.policies.act.modeling_act import ACTPolicy
+from safetensors.torch import load_file
 
 
 # parse the task name via command line
@@ -49,20 +52,28 @@ if __name__ == "__main__":
     follower = Robot(device_name=ROBOT_PORTS['follower'])
 
     # load the policy
-    ckpt_path = os.path.join(train_cfg['checkpoint_dir'], task, train_cfg['eval_ckpt_name'])
-    policy = make_policy(policy_config['policy_class'], policy_config)
-    loading_status = policy.load_state_dict(torch.load(ckpt_path, map_location=torch.device(device)))
-    print(loading_status)
-    policy.to(device)
+    # ckpt_path = os.path.join(train_cfg['checkpoint_dir'], train_cfg['eval_ckpt_name'])
+    # policy = make_policy(policy_config['policy_class'], policy_config)
+    # loading_status = policy.load_state_dict(torch.load(ckpt_path, map_location=torch.device(device)))
+    # print(loading_status)
+    # policy.to(device)
+    # policy.eval()
+
+    ckpt_path = '/home/thomwolf/Documents/Github/lerobot/outputs/train/sort/checkpoints/002000'
+    policy = ACTPolicy.from_pretrained(ckpt_path)
     policy.eval()
+    policy.to(device)
+    policy.reset()
 
     print(f'Loaded: {ckpt_path}')
-    stats_path = os.path.join(train_cfg['checkpoint_dir'], task,  f'dataset_stats.pkl')
-    with open(stats_path, 'rb') as f:
-        stats = pickle.load(f)
+    stats_path = "/home/thomwolf/Documents/Github/ACT/data/thomwolf/sort_sim/meta_data/stats.safetensors"
+    stats = load_file(stats_path)
+    # stats_path = os.path.join(train_cfg['checkpoint_dir'], f'dataset_stats.pkl')
+    # with open(stats_path, 'rb') as f:
+    #     stats = pickle.load(f)
 
-    pre_process = lambda s_qpos: (s_qpos - stats['qpos_mean']) / stats['qpos_std']
-    post_process = lambda a: a * stats['action_std'] + stats['action_mean']
+    pre_process = lambda s_qpos: (s_qpos - stats['observation.state/mean'].numpy()) / stats['observation.state/std'].numpy()
+    post_process = lambda a: a * stats['action/std'].numpy() + stats['action/mean'].numpy()
 
     query_frequency = policy_config['num_queries']
     if policy_config['temporal_agg']:
@@ -91,7 +102,7 @@ if __name__ == "__main__":
              # init buffers
             obs_replay = []
             action_replay = []
-            for t in range(cfg['episode_len']):
+            for t in tqdm(range(cfg['episode_len'])):
                 qpos_numpy = np.array(obs['qpos'])
                 qpos = pre_process(qpos_numpy)
                 qpos = torch.from_numpy(qpos).float().to(device).unsqueeze(0)
@@ -99,7 +110,29 @@ if __name__ == "__main__":
                 curr_image = get_image(obs['images'], cfg['camera_names'], device)
 
                 if t % query_frequency == 0:
-                    all_actions = policy(qpos, curr_image)
+                    # all_actions = policy(qpos, curr_image)
+
+                    state = qpos
+                    image = curr_image
+                    # Convert to float32 with image from channel first in [0,255]
+                    # to channel last in [0,1]
+                    # state = state.to(torch.float32)
+                    # image = image.to(torch.float32) / 255
+                    # image = image.permute(2, 0, 1)
+
+                    # # Send data tensors from CPU to GPU
+                    # state = state.to(device, non_blocking=True)
+                    # image = image.to(device, non_blocking=True)
+
+                    # # Add extra (empty) batch dimension, required to forward the policy
+                    # state = state.unsqueeze(0)
+                    # image = image.unsqueeze(0)
+
+                    observation = {
+                        "observation.state": state,
+                        "observation.images.front": image.squeeze(0),  # we re handling two times multiple camera (here and in lerobot)
+                    }
+                    all_actions = policy.select_action(observation)
                 if policy_config['temporal_agg']:
                     all_time_actions[[t], t:t+num_queries] = all_actions
                     actions_for_curr_step = all_time_actions[:, t]
@@ -111,7 +144,8 @@ if __name__ == "__main__":
                     exp_weights = torch.from_numpy(exp_weights.astype(np.float32)).to(device).unsqueeze(dim=1)
                     raw_action = (actions_for_curr_step * exp_weights).sum(dim=0, keepdim=True)
                 else:
-                    raw_action = all_actions[:, t % query_frequency]
+                    # raw_action = all_actions[:, t % query_frequency]
+                    raw_action = all_actions[0, :]
 
                 ### post-process actions
                 raw_action = raw_action.squeeze(0).cpu().numpy()
@@ -160,8 +194,7 @@ if __name__ == "__main__":
         idx = len([name for name in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, name))])
         dataset_path = os.path.join(data_dir, f'episode_{idx}')
         # save the data
-        os.makedirs("./data/demo/", exist_ok=True)
-        with h5py.File("./data/demo/trained.hdf5", 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
+        with h5py.File("data/demo/trained.hdf5", 'w', rdcc_nbytes=1024 ** 2 * 2) as root:
             root.attrs['sim'] = True
             obs = root.create_group('observations')
             image = obs.create_group('images')

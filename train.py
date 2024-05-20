@@ -21,7 +21,7 @@ policy_config = POLICY_CONFIG
 checkpoint_dir = os.path.join(train_cfg['checkpoint_dir'], task)
 
 # device
-device = os.environ['DEVICE']
+device = os.environ.get('DEVICE', 'cuda')
 
 
 def forward_pass(data, policy):
@@ -49,6 +49,7 @@ def plot_history(train_history, validation_history, num_epochs, ckpt_dir, seed):
 def train_bc(train_dataloader, val_dataloader, policy_config):
     # load policy
     policy = make_policy(policy_config['policy_class'], policy_config)
+    print(f"training on {device}")
     policy.to(device)
 
     # load optimizer

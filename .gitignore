@@ -177,3 +177,5 @@ deletable.*
 
 # videos
 *.mp4
+
+data/
